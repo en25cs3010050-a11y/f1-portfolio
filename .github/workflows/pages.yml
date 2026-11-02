@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -27,10 +27,21 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Prepare static site files
+      - name: Extract source into the repository and prepare Pages files
         run: |
-          mkdir _site
-          unzip -q f1-portfolio.zip -d _site
+          if [ -f f1-portfolio.zip ]; then
+            mkdir _source
+            unzip -q f1-portfolio.zip -d _source
+            rsync -a _source/ ./
+            rm -rf _source f1-portfolio.zip
+            git add -A
+            if ! git diff --cached --quiet; then
+              git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Extract website source archive'
+              git push
+            fi
+          fi
+          mkdir -p _site
+          rsync -a --exclude='.git/' --exclude='.github/' --exclude='_site/' --exclude='README.md' --exclude='Readme.txt' --exclude='forms/*.php' ./ _site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
